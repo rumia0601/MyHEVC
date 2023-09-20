@@ -12,11 +12,26 @@
 #define Level 3.1
 
 //======== CTU / CU / PU / TU ===============
-#define CTU_SIZE_ROW 64
-#define CTU_SIZE_COL 64
-//CTU의 크기
-#define CTU_COUNT_ROW 8 //세로로 8개의 CTU가 생성됨
-#define CTU_COUNT_COL 13 //가로로 13개의 CTU가 생성됨
+#define CTU_Y_SIZE_ROW 64
+#define CTU_Y_SIZE_COL 64
+#define CTU_Y_COUNT_ROW 8 //세로로 8개의 CTU가 생성됨 (7.5이므로 맨 아래 CTU는 절반만 데이터가 있음)
+#define CTU_Y_COUNT_COL 13 //가로로 13개의 CTU가 생성됨
+//CTU Y
+
+#define CTU_Cb_SIZE_ROW 32
+#define CTU_Cb_SIZE_COL 32
+#define CTU_Cb_COUNT_ROW 8 //세로로 8개의 CTU가 생성됨 (7.5이므로 맨 아래 CTU는 절반만 데이터가 있음)
+#define CTU_Cb_COUNT_COL 13 //가로로 13개의 CTU가 생성됨
+//CTU Cb
+
+#define CTU_Cr_SIZE_ROW 32
+#define CTU_Cr_SIZE_COL 32
+#define CTU_Cr_COUNT_ROW 8 //세로로 8개의 CTU가 생성됨 (7.5이므로 맨 아래 CTU는 절반만 데이터가 있음)
+#define CTU_Cr_COUNT_COL 13 //가로로 13개의 CTU가 생성됨
+//CTU Cr
+
+#define DPB_CAPICITY 16 //DPB에는 16개의 Picture가 저장될 수 있음
+#define RPL_CAPACITY 8 //RPL에는 8개의 Picture가 저장될 수 있음
 
 enum //INTRA or INTER
 {

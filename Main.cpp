@@ -2,7 +2,8 @@
 #include <fstream>
 
 #include "Macro.h"
-#include "Quadtree.h"
+#include "Block.h"
+#include "DPB.h"
 using namespace std;
 
 int main()
@@ -23,21 +24,24 @@ int main()
     // 파일을 쓰기 모드로 열기
     ofstream test_file("Test_BasketballDrill.yuv", ios::binary);
 
+    char byte;
+    unsigned int count_of_frame = 0;
+    unsigned int count_of_video = 0;
+    unsigned int max_count_of_frame = SourceWidth * SourceHeight * 1.5; //한 프레임은 832 x 480 x 1.5 픽셀로 구성
+    unsigned int max_count_of_video = FramesToBeEncoded; //동영상은 500 프레임으로 구성
+
+    unsigned int current_CTU_col = 0;
+
+    Picture picture;
+    //cout << "DONE" << endl;
+
     for (unsigned int current_frame = 1; current_frame <= FramesToBeEncoded; current_frame++) //1번째 프레임부터 500번째 프레임까지
     {
-        char byte;
-        unsigned long long count_of_frame = 0;
-        unsigned long long count_of_video = 0;
-        unsigned long long max_count_of_frame = SourceWidth * SourceHeight * 1.5; //한 프레임은 832 x 480 x 1.5 픽셀로 구성
-        unsigned long long max_count_of_video = FramesToBeEncoded; //동영상은 500 프레임으로 구성
-
-        for (unsigned char current_CTU_row = 1; current_CTU_row <= CTU_COUNT_ROW; current_CTU_row++)
-        {
-            for (unsigned char current_CTU_col = 1; current_CTU_col <= CTU_COUNT_COL; current_CTU_col++)
+        for (unsigned int current_CTU_row = 0; current_CTU_row <= CTU_Y_COUNT_ROW ; current_CTU_row++)
+            for (unsigned int current_CTU_col = 0; current_CTU_col <= CTU_Y_COUNT_COL; current_CTU_col++)
             {
-
+               
             }
-        }
     }
 
     /*

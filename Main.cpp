@@ -32,7 +32,7 @@ int main()
 
     unsigned int current_CTU_col = 0;
 
-    Picture picture;
+    Picture_Block picture_block;
     //cout << "DONE" << endl;
 
     for (unsigned int current_frame = 1; current_frame <= FramesToBeEncoded; current_frame++) //1번째 프레임부터 500번째 프레임까지
@@ -40,7 +40,7 @@ int main()
         for (unsigned int current_CTU_row = 0; current_CTU_row <= CTU_Y_COUNT_ROW ; current_CTU_row++)
             for (unsigned int current_CTU_col = 0; current_CTU_col <= CTU_Y_COUNT_COL; current_CTU_col++)
             {
-               
+                ;
             }
     }
 

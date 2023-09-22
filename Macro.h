@@ -31,7 +31,6 @@
 //CTU Cr
 
 #define DPB_CAPICITY 16 //DPB에는 16개의 Picture가 저장될 수 있음
-#define RPL_CAPACITY 8 //RPL에는 8개의 Picture가 저장될 수 있음
 
 enum //INTRA or INTER
 {

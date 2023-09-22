@@ -19,5 +19,5 @@ public:
 class DPB //Decoded Picture Buffer
 {
 public:
-	
+	RPL RPL;
 };

@@ -1,11 +1,39 @@
 원칙 ) 1개의 CU는 반드시 1개의 PU만을 가진다
 
+Intra
+	0 = Planar
+	1 = DC
+	2 = 오른쪽 위로 옮기기
+	...
+	10 = Horizontal (오른쪽으로 옮기기)
+	...
+	18 = 오른쪽 아래로 옮기기
+	...
+	26 = Vertical (아래로 옮기기)
+	...
+	34 = 왼쪽 아래로 옮기기
+
+Inter
+	0 = AMVP
+	1 = MERGE
+	2 = SKIP
+
+	{ pMVP : {-1, 7}, MVD : {+5, +4}, Residual : ??? }
+
+	pMVP = 이 PU의 MVP는 -1(직전 프레임)의, id가 7인 PU의 MV이다.
+	MVD = MVP를 row로 5만큼, col로 4만큼 더하면 이 PU의 MV이다.
+	Residual = 비트스트림
+
+	만약 {-1, 7}의 MV가 {-1, 7, +10, +20} 이었다면
+	현재 PU의 MV는 {-1, 7, +15, +24}가 된다.
+
+0
 <CTU>
 	<CU>
 		<PU>
 			0
 			<IntraOrInter>Intra<IntraOrInter>
-			<IntraMode>DC</IntraMode>
+			<IntraMode>1</IntraMode>
 		</PU>
 	</CU>
 </CTU>
@@ -17,28 +45,28 @@
 				<PU>
 					1
 					<IntraOrInter>Intra<IntraOrInter>
-					<IntraMode>DC</IntraMode>
+					<IntraMode>4</IntraMode>
 				</PU>
 			</CU>
 			<CU>
 				<PU>
 					2
 					<IntraOrInter>Intra<IntraOrInter>
-					<IntraMode>DC</IntraMode>
+					<IntraMode>3</IntraMode>
 				</PU>
 			</CU>
 			<CU>
 				<PU>
 					3
 					<IntraOrInter>Intra<IntraOrInter>
-					<IntraMode>DC</IntraMode>
+					<IntraMode>27</IntraMode>
 				</PU>
 			</CU>
 			<CU>
 				<PU>
 					4
 					<IntraOrInter>Intra<IntraOrInter>
-					<IntraMode>DC</IntraMode>
+					<IntraMode>26</IntraMode>
 				</PU>
 			</CU>
 		</DIV>
@@ -46,43 +74,46 @@
 			<PU>
 				5
 				<IntraOrInter>Intra<IntraOrInter>
-				<IntraMode>DC</IntraMode>
+				<IntraMode>0</IntraMode>
 			</PU>
 		</CU>
 		<CU>
 			<PU>
 				6
-				<IntraOrInter>Intra<IntraOrInter>
-				<IntraMode>DC</IntraMode>
+				<IntraOrInter>Inter<IntraOrInter>
+				<InterMode>0</InterMode>
+				<AMVP>{ pMVP : {-1, 7}, MVD : {+5, +4}, Residual : ??? }</AMVP>
 			</PU>
 		</CU>
 		<DIV>
 			<CU>
 				<PU>
 					7
-					<IntraOrInter>Intra<IntraOrInter>
-					<IntraMode>DC</IntraMode>
+					<IntraOrInter>Inter<IntraOrInter>
+					<InterMode>1</InterMode>
+					<MERGE>{ pMVP : {-1, 8}, Residual : ??? }</MERGE>
 				</PU>
 			</CU>
 			<CU>
 				<PU>
 					8
-					<IntraOrInter>Intra<IntraOrInter>
-					<IntraMode>DC</IntraMode>
+					<IntraOrInter>Inter<IntraOrInter>
+					<InterMode>2</InterMode>
+					<SKIP>{ pMVP : {-1, 9}}</SKIP>
 				</PU>
 			</CU>
 			<CU>
 				<PU>
 					9
 					<IntraOrInter>Intra<IntraOrInter>
-					<IntraMode>DC</IntraMode>
+					<IntraMode>1</IntraMode>
 				</PU>
 			</CU>
 			<CU>
 				<PU>
 					10
 					<IntraOrInter>Intra<IntraOrInter>
-					<IntraMode>DC</IntraMode>
+					<IntraMode>1</IntraMode>
 				</PU>
 			</CU>
 		</DIV>
@@ -94,7 +125,7 @@
 		<PU>
 			11
 			<IntraOrInter>Intra<IntraOrInter>
-			<IntraMode>DC</IntraMode>
+			<IntraMode>1</IntraMode>
 		</PU>
 	</CU>
 </CTU>
@@ -105,21 +136,21 @@
 			<PU>
 				12
 				<IntraOrInter>Intra<IntraOrInter>
-				<IntraMode>DC</IntraMode>
+				<IntraMode>1</IntraMode>
 			</PU>
 		</CU>
 		<CU>
 			<PU>
 				13
 				<IntraOrInter>Intra<IntraOrInter>
-				<IntraMode>DC</IntraMode>
+				<IntraMode>1</IntraMode>
 			</PU>
 		</CU>
 		<CU>
 			<PU>
 				14
 				<IntraOrInter>Intra<IntraOrInter>
-				<IntraMode>DC</IntraMode>
+				<IntraMode>1</IntraMode>
 			</PU>
 		</CU>
 		<DIV>
@@ -127,28 +158,28 @@
 				<PU>
 					15
 					<IntraOrInter>Intra<IntraOrInter>
-					<IntraMode>DC</IntraMode>
+					<IntraMode>1</IntraMode>
 				</PU>
 			</CU>
 			<CU>
 				<PU>
 					16
 					<IntraOrInter>Intra<IntraOrInter>
-					<IntraMode>DC</IntraMode>
+					<IntraMode>1</IntraMode>
 				</PU>
 			</CU>
 			<CU>
 				<PU>
 					17
 					<IntraOrInter>Intra<IntraOrInter>
-					<IntraMode>DC</IntraMode>
+					<IntraMode>1</IntraMode>
 				</PU>
 			</CU>
 			<CU>
 				<PU>
 					18
 					<IntraOrInter>Intra<IntraOrInter>
-					<IntraMode>DC</IntraMode>
+					<IntraMode>1</IntraMode>
 				</PU>
 			</CU>
 		</DIV>

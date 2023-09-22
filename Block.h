@@ -12,27 +12,51 @@ public:
 	//0은 안 쓰는 값 (초기화 안한 상태)
 };
 
+class MV //Inter인 블록의 움직임 정보
+{
+public:
+	
+};
+
 class Inter
 {
 public:
 	unsigned char mode = 0; //1 ~ 3 (1 = AMVP, 2 = MERGE, 3 = SKIP)
 	//0은 안 쓰는 값 (초기화 안한 상태)
+
+	//         AMVP MERGE SKIP
+	//MV       X    X     X (MP = *pMVP + MVD. 전송 대상은 아니지만 이 값은 디코더에서도 동일히 복원됨)
+	//pMVP     O    O     O
+	//MVD      O    X     X
+	//residual O    O     X
 };
 
 //PU 1개는 1개의 모드 (Intra라면 1 ~ 35, Inter라면 1 ~ 3)를 결정함
 class PU
 {
-	;
+public:
+	bool split_tu_flag;
+	unsigned char size; //이 PU의 가로&세로 길이 (4, 8, 16, 32, 64)
+	//false -> 이 PU는 TU를 1개 가짐
+	//true -> 이 PU는 TU를 4개 가짐
+	PU** PUs; //크기가 1 또는 4인 배열
+	//PU 1개의 주소 또는 PU 4개의 주소
+
+	Intra* p_Intra; //CU의 intra_or_inter가 INTRA일 때만 유의미함
+	Inter* p_Inter; //CU의 intra_or_inter가 INTER일 때만 유의미함
 };
 
 //CU 1개는 Intra or Inter를 결정함
 class CU
 {
 public:
-	bool split_cu_flag; //false -> 자식이 없음. true -> 자식이 4개 있음
+	bool split_pu_flag;
+	unsigned char size; //이 CU의 가로&세로 길이 (8, 16, 32, 64)
+	//false -> 이 CU는 PU를 1개 가짐
+	//true -> 이 CU는 PU를 4개 가짐
     unsigned char intra_or_inter; //INTRA -> 이 CU는 intra 예측을 함. INTER -> 이 CU는 inter 예측을 함
-	void* p_pu; //CU = PU이므로, QuadTreeNode 1개는 Intra 1개 또는 Inter 1개에만 대응됨
-	// 해당 영역의 값 또는 데이터
+	PU** PUs; //크기가 1 또는 4인 배열
+	//PU 1개의 주소 또는 PU 4개의 주소
 };
 
 //QuadTreeNode 1개는 CU 1개에 대응되거나, QuadTreeNode 4개에 대응됨
@@ -45,16 +69,16 @@ public:
 	unsigned char size; //이 노드의 가로&세로 길이 (8, 16, 32, 64) (depth를 유추할 수 있음)
 
 	QuadTreeNode** QuadTreeNodes; //split_cu_flag가 true일 때만 유의미한 자료구조
-	//QuadTreeNode 4개
+	//QuadTreeNode 4개의 주소
 
-	CU* p_CU; //split_cu_flag가 false일 때만 유의미한 자료구조
-	//CU 1개
+	CU* CUs; //split_cu_flag가 false일 때만 유의미한 자료구조
+	//CU의 주소
 };
 
 class QuadTree
 {
 public:
-	
+	QuadTreeNode* root;
 };
 
 //CTU

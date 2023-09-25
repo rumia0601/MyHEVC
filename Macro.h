@@ -11,6 +11,18 @@
 #define FramesToBeEncoded 500 //Number of frames to be coded
 #define Level 3.1
 
+#define Y_ROW SourceHeight
+#define Y_COL SourceWidth
+//Y
+
+#define CB_ROW (SourceHeight / 2)
+#define CB_COL (SourceWidth / 2)
+//Cb
+
+#define CR_ROW (SourceHeight / 2)
+#define CR_COL (SourceWidth / 2)
+//Cr
+
 //======== CTU / CU / PU / TU ===============
 #define CTU_Y_SIZE_ROW 64
 #define CTU_Y_SIZE_COL 64

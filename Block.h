@@ -1,35 +1,9 @@
 #pragma once
-
 #include <vector>
-
 #include "Macro.h"
+#include "Intra.h"
+#include "Inter.h"
 using namespace std;
-
-class Intra
-{
-public:
-	unsigned char mode = 0; //1 ~ 35 (intra의 1번 모드부터 35번 모드까지)
-	//0은 안 쓰는 값 (초기화 안한 상태)
-};
-
-class MV //Inter인 블록의 움직임 정보
-{
-public:
-	
-};
-
-class Inter
-{
-public:
-	unsigned char mode = 0; //1 ~ 3 (1 = AMVP, 2 = MERGE, 3 = SKIP)
-	//0은 안 쓰는 값 (초기화 안한 상태)
-
-	//         AMVP MERGE SKIP
-	//MV       X    X     X (MP = *pMVP + MVD. 전송 대상은 아니지만 이 값은 디코더에서도 동일히 복원됨)
-	//pMVP     O    O     O
-	//MVD      O    X     X
-	//residual O    O     X
-};
 
 //PU 1개는 1개의 모드 (Intra라면 1 ~ 35, Inter라면 1 ~ 3)를 결정함
 class PU
@@ -71,7 +45,7 @@ public:
 	QuadTreeNode** QuadTreeNodes; //split_cu_flag가 true일 때만 유의미한 자료구조
 	//QuadTreeNode 4개의 주소
 
-	CU* CUs; //split_cu_flag가 false일 때만 유의미한 자료구조
+	CU* pCU; //split_cu_flag가 false일 때만 유의미한 자료구조
 	//CU의 주소
 };
 
@@ -94,7 +68,7 @@ public:
 //하나의 Picture 내에서는 CTU가 2차원 vector로 존재 (Y, Cb, Cr 별로 1개씩 총 3개)
 //하나의 CTU 내에서는 CU가 트리 구조로 존재
 //DPB.h의 Picture_YCbCr과는 다름
-//YCbCr 픽셀값 뿐만 아니라 블록 분할 정보도 포함된 2차원 배열 3개
+//블록 분할 정보가 포함된 2차원 배열 3개
 class Picture_Block
 {
 public:

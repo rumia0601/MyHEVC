@@ -5,6 +5,12 @@
 #include "Inter.h"
 using namespace std;
 
+class TU
+{
+public:
+
+};
+
 //PU 1개는 1개의 모드 (Intra라면 1 ~ 35, Inter라면 1 ~ 3)를 결정함
 class PU
 {
@@ -13,7 +19,7 @@ public:
 	unsigned char size; //이 PU의 가로&세로 길이 (4, 8, 16, 32, 64)
 	//false -> 이 PU는 TU를 1개 가짐
 	//true -> 이 PU는 TU를 4개 가짐
-	PU** PUs; //크기가 1 또는 4인 배열
+	TU** TUs; //크기가 1 또는 4인 배열
 	//PU 1개의 주소 또는 PU 4개의 주소
 
 	Intra* p_Intra; //CU의 intra_or_inter가 INTRA일 때만 유의미함

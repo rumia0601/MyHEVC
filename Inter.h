@@ -15,7 +15,7 @@ public:
 	//0은 안 쓰는 값 (초기화 안한 상태)
 	MV mv;
 	//         AMVP MERGE SKIP
-	//MV       X    X     X (MP = *pMVP + MVD. 전송 대상은 아니지만 이 값은 디코더에서도 동일히 복원됨)
+	//MV       X    X     X (MV = *pMVP + MVD. 전송 대상은 아니지만 이 값은 디코더에서도 동일히 복원됨)
 	//pMVP     O    O     O
 	//MVD      O    X     X
 	//residual O    O     X

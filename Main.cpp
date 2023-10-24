@@ -39,11 +39,12 @@ int main()
     {
         //새로운 프레임
 
-        for (unsigned int current_CTU_row = 0; current_CTU_row <= CTU_Y_COUNT_ROW ; current_CTU_row++)
-            for (unsigned int current_CTU_col = 0; current_CTU_col <= CTU_Y_COUNT_COL; current_CTU_col++)
+        for (unsigned int current_CTU_row = 0; current_CTU_row < CTU_Y_COUNT_ROW ; current_CTU_row++)
+            for (unsigned int current_CTU_col = 0; current_CTU_col < CTU_Y_COUNT_COL; current_CTU_col++)
             {
-                ;
+                double RDO_CTU = 0;
             }
+        //Y
     }
 
     /*

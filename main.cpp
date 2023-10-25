@@ -2,6 +2,7 @@
 #include <string>
 #include <fstream>
 #include <stack>
+#include <random>
 using namespace std;
 
 #define CTU_SIZE 64
@@ -10,10 +11,38 @@ using namespace std;
 #define MIN_DEPTH 0
 #define MAX_DEPTH 3
 
+#define ROW 480
+#define COL 832
+
+random_device rd;
+mt19937 gen(rd());
+uniform_real_distribution<> dis(0.0, 1.0);
+//균등 분포 생성
+
+ifstream fin("BasketballDrill.yuv");
+unsigned char current_frame[480][832];
+
 class CU
 {
 public:
+	int row = 0;
+	int col = 0;
+	int size = 0;
+	//이 CU는 [row][col]        ... [row][col + size]
+	//        ...                   ...
+	//        [row + size][col] ... [row + size][col + size] 에 대응된다
 
+	CU(int row, int col, int size)
+	{
+		this->row = row;
+		this->col = col;
+		this->size = size;
+	}
+
+	double predict()
+	{
+		return 1.0;
+	}
 };
 
 class QUADTREENODE
@@ -28,7 +57,7 @@ public:
 	//단말 노드인 경우, NULL이다 (has_child = true)
 	//단말 노드가 아닌 경우, 4개의 QUADTREE를 가르킨다 (has_child = false)
 
-	CU* p_cu = NULL;
+	CU* cu = NULL;
 	//단말 노드는 1개의 CU를 가르킨다
 	//단말 노드가 아닌 경우, NULL이다
 
@@ -39,22 +68,43 @@ public:
 	//루트 노드인 경우, ""
 	//루트 노드가 아닌 경우, "q", "qw", "qwa" 등으로 존재
 
-	QUADTREENODE() //루트 노드일 때의 생성자
-	{
-		;
-	}
+	int row = 0;
+	int col = 0;
+	int size = 0;
 
-	QUADTREENODE(int depth, string pattern) //루트 노드가 아닐 때의 생성자
+	QUADTREENODE(int row, int col, int size, int depth, string pattern)
 	{
+		this->row = row;
+		this->col = col;
+		this->size = size;
+
 		this->depth = depth;
 		this->pattern = pattern;
+
+		this->cu = new CU(row, col, size); //CU 생성
 	}
 
-	//소멸자 필요 없음 (자식의 자식은 없음)
+	~QUADTREENODE()
+	{
+		if (cu != NULL)
+			delete cu;
+
+		if (top_left != NULL)
+			delete top_left;
+		if (top_right != NULL)
+			delete top_right;
+		if (bottom_left != NULL)
+			delete bottom_left;
+		if (bottom_right != NULL)
+			delete bottom_right;
+	}
 
 	double RDOwithoutSplit()
 	{
 		double result = 0;
+
+		result = cu->predict();
+
 		return result;
 	}
 
@@ -66,10 +116,17 @@ public:
 		else if (has_child == true)
 			exit(-2); //이미 나눴는데 또 나눌 수는 없음
 
-		top_left = new QUADTREENODE(depth + 1, pattern + 'q');
-		top_right = new QUADTREENODE(depth + 1, pattern + 'w');
-		bottom_left = new QUADTREENODE(depth + 1, pattern + 'a');
-		bottom_right = new QUADTREENODE(depth + 1, pattern + 's');
+		int half_size = size / 2;
+
+		delete cu;
+		cu = NULL;
+		//말단 노드가 아니게 되었으므로 CU를 삭제
+
+		top_left = new QUADTREENODE(row, col, half_size, depth + 1, pattern + 'q');
+		top_right = new QUADTREENODE(row, col + half_size, half_size, depth + 1, pattern + 'w');
+		bottom_left = new QUADTREENODE(row + half_size, col, half_size, depth + 1, pattern + 'a');
+		bottom_right = new QUADTREENODE(row + half_size, col + half_size, half_size, depth + 1, pattern + 's');
+		//말단 노드가 아니게 되었으므로 자식 노드들을 생성
 
 		double result1 = top_left->RDOwithoutSplit();
 		double result2 = top_right->RDOwithoutSplit();
@@ -94,10 +151,18 @@ public:
 		else if (had_RDO == true)
 			exit(-4); //RDO를 안 해봤는데 undo를 할 수는 없음
 
+		this->cu = new CU(row, col, size);
+		//말단 노드가 되었으므로 CU 생성
+
 		delete top_left;
+		top_left = NULL;
 		delete top_right;
+		top_right = NULL;
 		delete bottom_left;
+		bottom_left = NULL;
 		delete bottom_right;
+		bottom_right = NULL;
+		//말단 노드가 되었으므로 자식들을 삭제
 
 		top_left = NULL;
 		top_right = NULL;
@@ -117,7 +182,13 @@ public:
 			bottom_right->print_pattern(fout);
 
 		if (has_child == false)
-			fout << pattern << endl;
+		{
+			if (depth == 0) //CTU = CU인 경우
+				fout << "x" << " " << row << " " << col << " " << size << endl;
+
+			else
+				fout << pattern << " " << row << " " << col << " " << size << endl;
+		}
 	}
 };
 
@@ -126,9 +197,23 @@ class QUADTREE
 public:
 	QUADTREENODE *root = NULL;
 
-	QUADTREE() //생성자
+	int row = 0;
+	int col = 0;
+	int size = 0;
+
+	QUADTREE(int row, int col, int size) //생성자
 	{
-		root = new QUADTREENODE();
+		this->row = row;
+		this->col = col;
+		this->size = size;
+
+		root = new QUADTREENODE(row, col, size, 0, "");
+	}
+
+	~QUADTREE()
+	{
+		if (root != NULL)
+			delete root;
 	}
 
 	QUADTREENODE* FindCandidate(QUADTREENODE* current) //depth가 MAX_DEPTH가 아니고 had_RDO가 false인 QUADTREENODE들 중, DFS 했을 때 가장 먼저 만나는 QUADTRENODE
@@ -175,10 +260,29 @@ public:
 class CTU
 {
 public:
-	int size = CTU_SIZE;
+	int row = 0;
+	int col = 0;
+	int size = 0;
+	//이 CTU는 [row][col]        ... [row][col + size]
+	//         ...                   ...
+	//         [row + size][col] ... [row + size][col + size] 에 대응된다
 
-	QUADTREE quadtree;
+	QUADTREE* quadtree;
 	//1개의 CTU는 1개의 QUADTREE를 가진다 (싱글턴)
+
+	CTU(int row, int col, int size)
+	{
+		this->row = row;
+		this->col = col;
+		this->size = size;
+		quadtree = new QUADTREE(row, col, size);
+	}
+
+	~CTU()
+	{
+		if (quadtree != NULL)
+			delete quadtree;
+	}
 
 	void RDO()
 	{
@@ -186,7 +290,7 @@ public:
 
 		while (true)
 		{
-			candidate = quadtree.FindCandidate(quadtree.root);
+			candidate = quadtree->FindCandidate(quadtree->root);
 
 			if (candidate == NULL) //모든 Node에 대해 RDO를 할 때까지 반복
 				break;
@@ -194,11 +298,23 @@ public:
 			double result_without_split = candidate->RDOwithoutSplit();
 			double result_with_split = candidate->RDOwithSplit(); //시험 삼아 나눠 봄 (자식이 4개 생성됨)
 
+			result_without_split *= dis(gen); //1 * [0, 1)
+			result_with_split *= (0.25 * dis(gen)); //4 * 0.25 * [0, 1)
+
+			cout << result_without_split << " " << result_with_split << endl;
+			//점수를 난수화
+
 			if (result_without_split <= result_with_split) //안 나누는 게 더 좋음 (RDO 결과물은 작을수록 좋음)
+			{
+				cout << "not split" << endl;
+
 				candidate->Split_undo(); //자식 4개를 전부 지움
+			}
 
 			else //나누는 게 더 좋음
 			{
+				cout << "split" << endl;
+
 				//cout << "SPLITTED" << endl;
 				//cout << candidate << endl;
 				//cout << candidate->top_left->pattern << endl;
@@ -212,10 +328,12 @@ public:
 
 int main()
 {
-	CTU ctu;
+	fin.read(reinterpret_cast<char*>(&current_frame[0][0]), ROW * COL); //0th frame of file -> [480][832]
+
+	CTU ctu(0, 0, CTU_SIZE);
 
 	ctu.RDO();
-	ctu.quadtree.save();
+	ctu.quadtree->save();
 
 	return 0;
 }

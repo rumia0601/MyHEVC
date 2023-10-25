@@ -3,6 +3,7 @@
 #include <fstream>
 #include <stack>
 #include <random>
+#include <vector>
 using namespace std;
 
 #define CTU_SIZE 64
@@ -13,14 +14,20 @@ using namespace std;
 
 #define ROW 480
 #define COL 832
+#define ROW_PADDED 512 
+#define COL_PADDED 832
 
 random_device rd;
 mt19937 gen(rd());
 uniform_real_distribution<> dis(0.0, 1.0);
 //균등 분포 생성
 
-ifstream fin("BasketballDrill.yuv");
-unsigned char current_frame[480][832];
+ifstream fin("BasketballDrill.yuv", ios::binary);
+ofstream fout_txt("QUADTREE.txt");
+ofstream fout("QUADTREE.yuv", ios::binary);
+ofstream fout_not_flatten("QUADTREE_NOT_FLATTEN.yuv", ios::binary);
+unsigned char current_frame[ROW_PADDED][COL_PADDED];
+unsigned char current_frame_reconstructed[ROW_PADDED][COL_PADDED];
 
 class CU
 {
@@ -32,11 +39,43 @@ public:
 	//        ...                   ...
 	//        [row + size][col] ... [row + size][col + size] 에 대응된다
 
+	vector<vector<unsigned char>> current_block;
+
 	CU(int row, int col, int size)
 	{
 		this->row = row;
 		this->col = col;
 		this->size = size;
+		set_block();
+	}
+
+	void set_block()
+	{
+		current_block.resize(size, vector<unsigned char>(size));
+
+		for (int i = 0; i < size; i++)
+		{
+			for (int j = 0; j < size; j++)
+			{
+				current_block[i][j] = current_frame[row + i][col + j];
+				//cout << i << " " << j << " " << current_block[i][j];
+			}
+		}
+		//현재 프레임의 픽셀들 중 현재 블록과 대응되는 픽셀들을, 현재 블록에 복사
+	}
+
+	void print_block()
+	{
+		for (int i = 0; i < size; i++)
+		{
+			for (int j = 0; j < size; j++)
+			{
+				fout << current_block[i][j];
+				//cout << current_block[i][j];
+
+				current_frame_reconstructed[row + i][col + j] = current_block[i][j];
+			}
+		}
 	}
 
 	double predict()
@@ -170,24 +209,49 @@ public:
 		bottom_right = NULL;
 	}
 
-	void print_pattern(ofstream& fout)
+	void print_pattern()
 	{
 		if (top_left != NULL)
-			top_left->print_pattern(fout);
+			top_left->print_pattern();
 		if (top_right != NULL)
-			top_right->print_pattern(fout);
+			top_right->print_pattern();
 		if (bottom_left != NULL)
-			bottom_left->print_pattern(fout);
+			bottom_left->print_pattern();
 		if (bottom_right != NULL)
-			bottom_right->print_pattern(fout);
+			bottom_right->print_pattern();
 
 		if (has_child == false)
 		{
 			if (depth == 0) //CTU = CU인 경우
-				fout << "x" << " " << row << " " << col << " " << size << endl;
+			{
+				//cout << "x" << " " << row << " " << col << " " << size << endl;
+
+				fout_txt << "x" << " " << row << " " << col << " " << size << endl;
+			}
 
 			else
-				fout << pattern << " " << row << " " << col << " " << size << endl;
+			{
+				//cout << pattern << " " << row << " " << col << " " << size << endl;
+
+				fout_txt << pattern << " " << row << " " << col << " " << size << endl;
+			}
+		}
+	}
+
+	void print_block()
+	{
+		if (top_left != NULL)
+			top_left->print_block();
+		if (top_right != NULL)
+			top_right->print_block();
+		if (bottom_left != NULL)
+			bottom_left->print_block();
+		if (bottom_right != NULL)
+			bottom_right->print_block();
+
+		if (has_child == false)
+		{
+			cu->print_block();
 		}
 	}
 };
@@ -252,8 +316,10 @@ public:
 
 	void save() //트리 정보를 파일로 내보내기
 	{
-		ofstream fout("QUADTREE.txt");
-		root->print_pattern(fout);
+		root->print_pattern();
+		fout_txt << endl;
+
+		root->print_block();
 	}
 };
 
@@ -301,19 +367,19 @@ public:
 			result_without_split *= dis(gen); //1 * [0, 1)
 			result_with_split *= (0.25 * dis(gen)); //4 * 0.25 * [0, 1)
 
-			cout << result_without_split << " " << result_with_split << endl;
+			//cout << result_without_split << " " << result_with_split << endl;
 			//점수를 난수화
 
 			if (result_without_split <= result_with_split) //안 나누는 게 더 좋음 (RDO 결과물은 작을수록 좋음)
 			{
-				cout << "not split" << endl;
+				//cout << "not split" << endl;
 
 				candidate->Split_undo(); //자식 4개를 전부 지움
 			}
 
 			else //나누는 게 더 좋음
 			{
-				cout << "split" << endl;
+				//cout << "split" << endl;
 
 				//cout << "SPLITTED" << endl;
 				//cout << candidate << endl;
@@ -328,12 +394,29 @@ public:
 
 int main()
 {
-	fin.read(reinterpret_cast<char*>(&current_frame[0][0]), ROW * COL); //0th frame of file -> [480][832]
+	//fin.read(reinterpret_cast<char*>(&current_frame[0][0]), ROW_PADDED * COL_PADDED); //0th frame of file -> [480][832]
 
-	CTU ctu(0, 0, CTU_SIZE);
+	for (int i = 0; i < ROW; i++)
+		for (int j = 0; j < COL; j++)
+			fin.get(reinterpret_cast<char&>(current_frame[i][j]));
+	//current frame 생성
 
-	ctu.RDO();
-	ctu.quadtree->save();
+	for (int i = 0; i < ROW; i+= CTU_SIZE)
+		for (int j = 0; j < COL; j += CTU_SIZE)
+		{
+			CTU ctu(i, j, CTU_SIZE);
+
+			ctu.RDO();
+			ctu.quadtree->save();
+		}
+	//모든 CTU에 대해서, RDO를 진행
+
+	for (int i = 0; i < ROW_PADDED; i++)
+		for (int j = 0; j < COL_PADDED; j++)
+		{
+			fout_not_flatten << current_frame_reconstructed[i][j];
+		}
+	//복원된 프레임 생성
 
 	return 0;
 }

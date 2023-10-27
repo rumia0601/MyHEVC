@@ -4,6 +4,8 @@
 #include <stack>
 #include <random>
 #include <vector>
+#include <algorithm>
+#include <cmath>
 using namespace std;
 
 #define CTU_SIZE 64
@@ -14,6 +16,9 @@ using namespace std;
 
 #define ROW 480
 #define COL 832
+#define ROW_CB 240
+#define COL_CB 416
+#define FRAME 10
 #define ROW_PADDED 512 
 #define COL_PADDED 832
 
@@ -23,11 +28,20 @@ uniform_real_distribution<> dis(0.0, 1.0);
 //균등 분포 생성
 
 ifstream fin("BasketballDrill.yuv", ios::binary);
-ofstream fout_txt("QUADTREE.txt");
-ofstream fout("QUADTREE.yuv", ios::binary);
-ofstream fout_not_flatten("QUADTREE_NOT_FLATTEN.yuv", ios::binary);
+ofstream fout_txt("PREDICT.txt");
+
+ofstream fout_predict("PREDICT.yuv", ios::binary);
+ofstream fout_residual("RESIDUAL.yuv", ios::binary);
+ofstream fout_reconstruct("RECONSTRUCT.yuv", ios::binary);
+
 unsigned char current_frame[ROW_PADDED][COL_PADDED];
-unsigned char current_frame_reconstructed[ROW_PADDED][COL_PADDED];
+unsigned char current_frame_reconstruct[ROW_PADDED][COL_PADDED];
+
+unsigned char current_frame_predict[ROW_PADDED][COL_PADDED];
+signed short current_frame_residual[ROW_PADDED][COL_PADDED];
+
+int without_split = 0;
+int with_split = 0;
 
 class CU
 {
@@ -39,6 +53,9 @@ public:
 	//        ...                   ...
 	//        [row + size][col] ... [row + size][col + size] 에 대응된다
 
+	unsigned int DC = 0;
+	//현재 CU의 DC 성분 (CU내 모든 픽셀들의 평균)
+
 	vector<vector<unsigned char>> current_block;
 
 	CU(int row, int col, int size)
@@ -46,6 +63,7 @@ public:
 		this->row = row;
 		this->col = col;
 		this->size = size;
+		this->DC = 0;
 		set_block();
 	}
 
@@ -58,29 +76,91 @@ public:
 			for (int j = 0; j < size; j++)
 			{
 				current_block[i][j] = current_frame[row + i][col + j];
-				//cout << i << " " << j << " " << current_block[i][j];
+				DC += current_block[i][j];
 			}
 		}
+		DC /= (size * size);
+
 		//현재 프레임의 픽셀들 중 현재 블록과 대응되는 픽셀들을, 현재 블록에 복사
 	}
 
-	void print_block()
+	void reconstruct()
 	{
 		for (int i = 0; i < size; i++)
 		{
 			for (int j = 0; j < size; j++)
 			{
-				fout << current_block[i][j];
-				//cout << current_block[i][j];
+				signed short current = 0;
+				
+				unsigned char predict = current_frame_predict[row + i][col + j]; //[0, 255]
+				signed short residual = current_frame_residual[row + i][col + j]; //[-255, 255]
 
-				current_frame_reconstructed[row + i][col + j] = current_block[i][j];
+				current = residual;
+				current += predict;
+				//이론상 [-255, 510]지만, 실제로는 [0, 255]만이 나옴
+				
+				if (current <= -1 || current >= 256)
+				{
+					exit(-1);
+				}
+				//무조건 [0, 255]여야 함
+
+				current_frame_reconstruct[row + i][col + j] = current;
 			}
 		}
 	}
 
-	double predict()
+	void set_predict()
 	{
-		return 1.0;
+		for (int i = 0; i < size; i++)
+		{
+			for (int j = 0; j < size; j++)
+			{
+				current_frame_predict[row + i][col + j] = DC;
+				//일단, DC로만 예측
+			}
+		}
+	}
+
+	void set_residual()
+	{
+		for (int i = 0; i < size; i++)
+		{
+			for (int j = 0; j < size; j++)
+			{
+				unsigned char original = current_block[i][j];
+				unsigned char predict = current_frame_predict[row + i][col + j];
+				signed short delta = original - predict;
+
+				current_frame_residual[row + i][col + j] = delta;
+				//current_block = [0, 255]
+				//predict = [0, 255]
+				//residual = [-255, 255]
+			}
+		}
+	}
+
+	long long set_predict_residual()
+	{
+		set_predict();
+		set_residual();
+
+		long long rate = 0;
+
+		for (int i = 0; i < size; i++)
+		{
+			for (int j = 0; j < size; j++)
+			{
+				rate += abs(current_frame_residual[i][j]);
+				//rate += (current_frame_residual[i][j]) * (current_frame_residual[i][j]);
+			}
+		}
+		//무손실이므로, distortion = 0 (실제로는 transform을 해서 얻어 봐야 함)
+		//rate는 residual의 절댓값의 합의 평균 (실제로는 CABAC을 해서 얻어 봐야 함)
+		//절댓값의 합으로 할 시, 안 나누는 경우가 4607번, 나누는 경우가 1189번 채택됨
+		//제곱의 합으로 할 시, 3437번, 나누는 경우가 799번 채택됨
+
+		return rate; 
 	}
 };
 
@@ -142,7 +222,7 @@ public:
 	{
 		double result = 0;
 
-		result = cu->predict();
+		result = cu->set_predict_residual();
 
 		return result;
 	}
@@ -153,7 +233,7 @@ public:
 			has_child = true;
 
 		else if (has_child == true)
-			exit(-2); //이미 나눴는데 또 나눌 수는 없음
+			exit(-1); //이미 나눴는데 또 나눌 수는 없음
 
 		int half_size = size / 2;
 
@@ -182,13 +262,13 @@ public:
 			has_child = false;
 
 		else if (has_child == false)
-			exit(-3); //RDO를 해봤는데 자식이 없을 수는 없음
+			exit(-1); //RDO를 해봤는데 자식이 없을 수는 없음
 
 		if (had_RDO == false)
 			had_RDO = true;
 
 		else if (had_RDO == true)
-			exit(-4); //RDO를 안 해봤는데 undo를 할 수는 없음
+			exit(-1); //RDO를 안 해봤는데 undo를 할 수는 없음
 
 		this->cu = new CU(row, col, size);
 		//말단 노드가 되었으므로 CU 생성
@@ -207,6 +287,10 @@ public:
 		top_right = NULL;
 		bottom_left = NULL;
 		bottom_right = NULL;
+
+		cu->set_predict();
+		cu->set_residual();
+		//전역 자료구조인 predict, residual이 자식 노드들이 RDO를 하면서 수정되었으므로 되돌려야 함
 	}
 
 	void print_pattern()
@@ -224,34 +308,30 @@ public:
 		{
 			if (depth == 0) //CTU = CU인 경우
 			{
-				//cout << "x" << " " << row << " " << col << " " << size << endl;
-
 				fout_txt << "x" << " " << row << " " << col << " " << size << endl;
 			}
 
 			else
 			{
-				//cout << pattern << " " << row << " " << col << " " << size << endl;
-
 				fout_txt << pattern << " " << row << " " << col << " " << size << endl;
 			}
 		}
 	}
 
-	void print_block()
+	void reconstruct()
 	{
 		if (top_left != NULL)
-			top_left->print_block();
+			top_left->reconstruct();
 		if (top_right != NULL)
-			top_right->print_block();
+			top_right->reconstruct();
 		if (bottom_left != NULL)
-			bottom_left->print_block();
+			bottom_left->reconstruct();
 		if (bottom_right != NULL)
-			bottom_right->print_block();
+			bottom_right->reconstruct();
 
 		if (has_child == false)
 		{
-			cu->print_block();
+			cu->reconstruct();
 		}
 	}
 };
@@ -319,7 +399,7 @@ public:
 		root->print_pattern();
 		fout_txt << endl;
 
-		root->print_block();
+		root->reconstruct();
 	}
 };
 
@@ -364,29 +444,25 @@ public:
 			double result_without_split = candidate->RDOwithoutSplit();
 			double result_with_split = candidate->RDOwithSplit(); //시험 삼아 나눠 봄 (자식이 4개 생성됨)
 
-			result_without_split *= dis(gen); //1 * [0, 1)
-			result_with_split *= (0.25 * dis(gen)); //4 * 0.25 * [0, 1)
+			result_without_split = dis(gen);
+			result_with_split = dis(gen);
+			//점수를 랜덤화
 
-			//cout << result_without_split << " " << result_with_split << endl;
-			//점수를 난수화
+			if (result_without_split <= result_with_split)
+				without_split++;
+			else
+				with_split++;
 
 			if (result_without_split <= result_with_split) //안 나누는 게 더 좋음 (RDO 결과물은 작을수록 좋음)
 			{
-				//cout << "not split" << endl;
+				//cout << "WITHOUT SPLIT" << endl;
 
 				candidate->Split_undo(); //자식 4개를 전부 지움
 			}
 
 			else //나누는 게 더 좋음
 			{
-				//cout << "split" << endl;
-
-				//cout << "SPLITTED" << endl;
-				//cout << candidate << endl;
-				//cout << candidate->top_left->pattern << endl;
-				//cout << candidate->top_right->pattern << endl;
-				//cout << candidate->bottom_left->pattern << endl;
-				//cout << candidate->bottom_right->pattern << endl;
+				;//cout << "WITH SPLIT" << endl;
 			}
 		}
 	}
@@ -394,29 +470,50 @@ public:
 
 int main()
 {
-	//fin.read(reinterpret_cast<char*>(&current_frame[0][0]), ROW_PADDED * COL_PADDED); //0th frame of file -> [480][832]
+	for (int k = 0; k < FRAME; k++)
+	{
+		cout << k << endl;
 
-	for (int i = 0; i < ROW; i++)
-		for (int j = 0; j < COL; j++)
-			fin.get(reinterpret_cast<char&>(current_frame[i][j]));
-	//current frame 생성
+		for (int i = 0; i < ROW; i++)
+			for (int j = 0; j < COL; j++)
+				fin.get(reinterpret_cast<char&>(current_frame[i][j]));
+		//현재 프레임의 Y 불러오기
 
-	for (int i = 0; i < ROW; i+= CTU_SIZE)
-		for (int j = 0; j < COL; j += CTU_SIZE)
-		{
-			CTU ctu(i, j, CTU_SIZE);
+		for (int i = 0; i < ROW; i += CTU_SIZE)
+			for (int j = 0; j < COL; j += CTU_SIZE)
+			{
+				CTU ctu(i, j, CTU_SIZE);
 
-			ctu.RDO();
-			ctu.quadtree->save();
-		}
-	//모든 CTU에 대해서, RDO를 진행
+				ctu.RDO();
+				ctu.quadtree->save();
+			}
+		//현재 프레임의 Y CTU에 대해서 RDO를 진행
 
-	for (int i = 0; i < ROW_PADDED; i++)
-		for (int j = 0; j < COL_PADDED; j++)
-		{
-			fout_not_flatten << current_frame_reconstructed[i][j];
-		}
-	//복원된 프레임 생성
+		for (int i = 0; i < ROW; i++)
+			for (int j = 0; j < COL; j++)
+			{
+				fout_predict << current_frame_predict[i][j];
+
+				signed short current_short = current_frame_residual[i][j]; //[-255, 255]
+				current_short += (signed short) 255; //[0, 510]
+				current_short = (current_short + 1) >> 1; //[0, 255]
+				unsigned char current_char = current_short; //[0, 255]
+				fout_residual << current_char;
+
+				fout_reconstruct << current_frame_reconstruct[i][j];
+			}
+		//현재 프레임의 Y에 대해서 prediction, residual, reconstruct을 파일로 save
+
+		fin.seekg(2 * (ROW / 2) * (COL / 2), std::ios::cur); //Cb, Cr을 스킵할 때
+	}
+	fin.close();
+	fout_txt.close();
+	fout_predict.close();
+	fout_residual.close();
+	fout_reconstruct.close();
+	//모든 프레임의 CTU에 대해서 RDO를 진행, 복원된 프레임 생성
+
+	cout << without_split << " " << with_split << endl;
 
 	return 0;
 }

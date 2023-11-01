@@ -18,7 +18,9 @@ using namespace std;
 #define COL 832
 #define ROW_CB 240
 #define COL_CB 416
-#define FRAME 10
+#define ROW_CR 240
+#define COL_CR 416
+#define FRAME 500
 #define ROW_PADDED 512 
 #define COL_PADDED 832
 
@@ -151,14 +153,14 @@ public:
 		{
 			for (int j = 0; j < size; j++)
 			{
-				rate += abs(current_frame_residual[i][j]);
-				//rate += (current_frame_residual[i][j]) * (current_frame_residual[i][j]);
+				rate += abs(current_frame_residual[row + i][col + j]); //5697 5715
+				//rate += (current_frame_residual[row + i][col + j]) * (current_frame_residual[row + i][col + j]);
 			}
 		}
 		//무손실이므로, distortion = 0 (실제로는 transform을 해서 얻어 봐야 함)
 		//rate는 residual의 절댓값의 합의 평균 (실제로는 CABAC을 해서 얻어 봐야 함)
-		//절댓값의 합으로 할 시, 안 나누는 경우가 4607번, 나누는 경우가 1189번 채택됨
-		//제곱의 합으로 할 시, 3437번, 나누는 경우가 799번 채택됨
+		//abs : 3260 22756
+		//se : 2296 28784
 
 		return rate; 
 	}
@@ -444,8 +446,8 @@ public:
 			double result_without_split = candidate->RDOwithoutSplit();
 			double result_with_split = candidate->RDOwithSplit(); //시험 삼아 나눠 봄 (자식이 4개 생성됨)
 
-			result_without_split = dis(gen);
-			result_with_split = dis(gen);
+			//result_without_split = dis(gen);
+			//result_with_split = dis(gen);
 			//점수를 랜덤화
 
 			if (result_without_split <= result_with_split)
@@ -455,14 +457,12 @@ public:
 
 			if (result_without_split <= result_with_split) //안 나누는 게 더 좋음 (RDO 결과물은 작을수록 좋음)
 			{
-				//cout << "WITHOUT SPLIT" << endl;
-
 				candidate->Split_undo(); //자식 4개를 전부 지움
 			}
 
 			else //나누는 게 더 좋음
 			{
-				;//cout << "WITH SPLIT" << endl;
+				;
 			}
 		}
 	}
@@ -473,6 +473,9 @@ int main()
 	for (int k = 0; k < FRAME; k++)
 	{
 		cout << k << endl;
+
+		//fin.seekg(ROW * COL, std::ios::cur); //Y를 스킵할 때
+		fill(&current_frame[0][0], &current_frame[0][0] + ROW * COL, 0); //Y를 할 때
 
 		for (int i = 0; i < ROW; i++)
 			for (int j = 0; j < COL; j++)
@@ -504,7 +507,71 @@ int main()
 			}
 		//현재 프레임의 Y에 대해서 prediction, residual, reconstruct을 파일로 save
 
-		fin.seekg(2 * (ROW / 2) * (COL / 2), std::ios::cur); //Cb, Cr을 스킵할 때
+		//fin.seekg(ROW_CB * COL_CB, std::ios::cur); //Cb를 스킵할 때
+		fill(&current_frame[0][0], &current_frame[0][0] + ROW * COL, 0); //Cb를 할 때
+
+		for (int i = 0; i < ROW_CB; i++)
+			for (int j = 0; j < COL_CB; j++)
+				fin.get(reinterpret_cast<char&>(current_frame[i][j]));
+		//현재 프레임의 Cb 불러오기
+
+		for (int i = 0; i < ROW_CB; i += CTU_SIZE)
+			for (int j = 0; j < COL_CB; j += CTU_SIZE)
+			{
+				CTU ctu(i, j, CTU_SIZE);
+
+				ctu.RDO();
+				ctu.quadtree->save();
+			}
+		//현재 프레임의 Cb CTU에 대해서 RDO를 진행
+
+		for (int i = 0; i < ROW_CB; i++)
+			for (int j = 0; j < COL_CB; j++)
+			{
+				fout_predict << current_frame_predict[i][j];
+
+				signed short current_short = current_frame_residual[i][j]; //[-255, 255]
+				current_short += (signed short)255; //[0, 510]
+				current_short = (current_short + 1) >> 1; //[0, 255]
+				unsigned char current_char = current_short; //[0, 255]
+				fout_residual << current_char;
+
+				fout_reconstruct << current_frame_reconstruct[i][j];
+			}
+		//현재 프레임의 Cb에 대해서 prediction, residual, reconstruct을 파일로 save
+
+		//fin.seekg(ROW_CR * COL_CR, std::ios::cur); //Cr을 스킵할 때
+		fill(&current_frame[0][0], &current_frame[0][0] + ROW * COL, 0); //Cr을 할 때
+
+		for (int i = 0; i < ROW_CR; i++)
+			for (int j = 0; j < COL_CR; j++)
+				fin.get(reinterpret_cast<char&>(current_frame[i][j]));
+		//현재 프레임의 Cr 불러오기
+
+		for (int i = 0; i < ROW_CR; i += CTU_SIZE)
+			for (int j = 0; j < COL_CR; j += CTU_SIZE)
+			{
+				CTU ctu(i, j, CTU_SIZE);
+
+				ctu.RDO();
+				ctu.quadtree->save();
+			}
+		//현재 프레임의 Cr CTU에 대해서 RDO를 진행
+
+		for (int i = 0; i < ROW_CR; i++)
+			for (int j = 0; j < COL_CR; j++)
+			{
+				fout_predict << current_frame_predict[i][j];
+
+				signed short current_short = current_frame_residual[i][j]; //[-255, 255]
+				current_short += (signed short)255; //[0, 510]
+				current_short = (current_short + 1) >> 1; //[0, 255]
+				unsigned char current_char = current_short; //[0, 255]
+				fout_residual << current_char;
+
+				fout_reconstruct << current_frame_reconstruct[i][j];
+			}
+		//현재 프레임의 Cr에 대해서 prediction, residual, reconstruct을 파일로 save
 	}
 	fin.close();
 	fout_txt.close();
